@@ -1,5 +1,3 @@
-require('web-streams-polyfill');  // إضافة هذه السطر لحل مشكلة ReadableStream
-
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
