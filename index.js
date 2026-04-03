@@ -1,11 +1,16 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { 
+    Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, 
+    StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, 
+    ChannelType, PermissionFlagsBits, ModalBuilder, 
+    TextInputBuilder, TextInputStyle 
+} = require('discord.js');
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// الإعدادات
+// --- الإعدادات ---
+const TOKEN = 'your-bot-token-here';  // قم بتحديد التوكن هنا مباشرة
 const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
 const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
 const LOG_CHANNEL_ID = '1488858730924605491'; 
@@ -14,15 +19,18 @@ const RIGHTS_TEXT = 'جميع الحقوق محفوظة لـ ساحة ريسكب
 
 client.once('ready', () => console.log(`${client.user.tag} جاهز لخدمة ساحة ريسكبت!`));
 
+// --- أمر !تكت ---
 client.on('messageCreate', async (message) => {
     if (message.content === '!تكت') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
         const embed = new EmbedBuilder()
             .setTitle('مركز الدعم الفني | ساحة ريسكبت')
             .setDescription('يرجى اختيار القسم المناسب لفتح تذكرة وسيتم الرد عليك فوراً.')
             .setColor(0x2b2d31)
             .setImage(MAIN_IMAGE)
             .setFooter({ text: RIGHTS_TEXT });
+
         const menu = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('ticket_select')
@@ -32,30 +40,39 @@ client.on('messageCreate', async (message) => {
                     { label: 'الدعم الفني', value: 'normal_support' }
                 ])
         );
+
         await message.channel.send({ embeds: [embed], components: [menu] });
     }
 });
 
+// --- التعامل مع التفاعلات ---
 client.on('interactionCreate', async (interaction) => {
+    // فتح المودال عند اختيار نوع التذكرة
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
         const choice = interaction.values[0];
         const modal = new ModalBuilder()
             .setCustomId(`modal_${choice}`)
             .setTitle(choice === 'high_support' ? 'دعم العليا' : 'الدعم الفني');
+        
         const issue = new TextInputBuilder()
             .setCustomId('issue_text')
             .setLabel('اكتب المشكله')
             .setStyle(TextInputStyle.Paragraph)
             .setPlaceholder('يرجى كتابة تفاصيل المشكلة هنا...')
             .setRequired(true);
+
         modal.addComponents(new ActionRowBuilder().addComponents(issue));
+
         await interaction.showModal(modal);
     }
+
+    // استقبال البيانات وإنشاء القناة الخاصة بالتذكرة
     if (interaction.isModalSubmit()) {
         const type = interaction.customId.split('_')[1];
         const isHigh = type === 'high_support';
         const targetRole = isHigh ? HIGH_SUPPORT_ROLE : NORMAL_SUPPORT_ROLE;
         const channelName = `ticket-${interaction.user.username}`;
+
         try {
             const channel = await interaction.guild.channels.create({
                 name: channelName,
@@ -66,6 +83,7 @@ client.on('interactionCreate', async (interaction) => {
                     { id: targetRole, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
                 ],
             });
+
             const welcomeEmbed = new EmbedBuilder()
                 .setDescription(`اهلا بك في **${isHigh ? 'دعم العليا' : 'الدعم الفني'}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
                 .addFields(
@@ -75,20 +93,26 @@ client.on('interactionCreate', async (interaction) => {
                 )
                 .setColor(0x2b2d31)
                 .setFooter({ text: RIGHTS_TEXT });
+
             const buttons = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
             );
+
             await channel.send({ content: `<@${interaction.user.id}> | <@&${targetRole}>`, embeds: [welcomeEmbed], components: [buttons] });
             await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
+
         } catch (err) {
             console.error(err);
         }
     }
+
+    // التعامل مع أزرار التفاعل (استلام التذكرة وحذفها)
     if (interaction.isButton()) {
         if (!interaction.member.roles.cache.has(HIGH_SUPPORT_ROLE) && !interaction.member.roles.cache.has(NORMAL_SUPPORT_ROLE)) {
             return interaction.reply({ content: 'عذراً، هذا الإجراء للمسؤولين فقط.', ephemeral: true });
         }
+
         if (interaction.customId === 'claim_ticket') {
             const disabledRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('claimed').setLabel('تم استلام التذكرة').setStyle(ButtonStyle.Success).setDisabled(true),
@@ -97,6 +121,7 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.update({ components: [disabledRow] });
             await interaction.followUp({ content: `تم استلام التذكرة بواسطة <@${interaction.user.id}>` });
         }
+
         if (interaction.customId === 'delete_ticket') {
             const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
@@ -113,4 +138,4 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-client.login(process.env.TOKEN);
+client.login(TOKEN);
