@@ -1,4 +1,4 @@
-‏require('dotenv').config();
+require('dotenv').config();
 const { 
     Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, 
     StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, 
@@ -7,7 +7,11 @@ const {
 } = require('discord.js');
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.MessageContent
+    ]
 });
 
 // --- الإعدادات ---
@@ -18,7 +22,9 @@ const LOG_CHANNEL_ID = '1488858730924605491';
 const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
 const RIGHTS_TEXT = 'جميع الحقوق محفوظة لـ ساحة ريسكبت';
 
-client.once('ready', () => console.log(`${client.user.tag} جاهز لخدمة ساحة ريسكبت!`));
+client.once('ready', () => {
+    console.log(`${client.user.tag} جاهز لخدمة ساحة ريسكبت!`);
+});
 
 client.on('messageCreate', async (message) => {
     if (message.content === '!تكت') {
@@ -64,51 +70,53 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
-        const type = interaction.customId.split('_')[1];
-        const isHigh = type === 'high_support';
-        const targetRole = isHigh ? HIGH_SUPPORT_ROLE : NORMAL_SUPPORT_ROLE;
-        const channelName = `ticket-${interaction.user.username}`;
-        
-        try {
-            const channel = await interaction.guild.channels.create({
-                name: channelName,
-                type: ChannelType.GuildText,
-                permissionOverwrites: [
-                    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                    { id: targetRole, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                ],
-            });
+        if (interaction.customId.startsWith('modal_')) {
+            const type = interaction.customId.split('_')[1];
+            const isHigh = type === 'high_support';
+            const targetRole = isHigh ? HIGH_SUPPORT_ROLE : NORMAL_SUPPORT_ROLE;
+            const channelName = `ticket-${interaction.user.username}`;
+            
+            try {
+                const channel = await interaction.guild.channels.create({
+                    name: channelName,
+                    type: ChannelType.GuildText,
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                        { id: targetRole, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                    ],
+                });
 
-            const welcomeEmbed = new EmbedBuilder()
-                .setDescription(`اهلا بك في **${isHigh ? 'دعم العليا' : 'الدعم الفني'}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
-                .addFields(
-                    { name: 'نوع القسم :', value: `\`${isHigh ? 'دعم العليا' : 'الدعم الفني'}\``, inline: false },
-                    { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
-                    { name: 'المشكله او الاستفسار :', value: `\`\`\`${interaction.fields.getTextInputValue('issue_text')}\`\`\``, inline: false }
-                )
-                .setColor(0x2b2d31)
-                .setFooter({ text: RIGHTS_TEXT });
+                const welcomeEmbed = new EmbedBuilder()
+                    .setDescription(`اهلا بك في **${isHigh ? 'دعم العليا' : 'الدعم الفني'}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
+                    .addFields(
+                        { name: 'نوع القسم :', value: `\`${isHigh ? 'دعم العليا' : 'الدعم الفني'}\``, inline: false },
+                        { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
+                        { name: 'المشكله او الاستفسار :', value: `\`\`\`${interaction.fields.getTextInputValue('issue_text')}\`\`\``, inline: false }
+                    )
+                    .setColor(0x2b2d31)
+                    .setFooter({ text: RIGHTS_TEXT });
 
-            const buttons = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
-            );
+                const buttons = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
+                );
 
-            await channel.send({ content: `<@${interaction.user.id}> | <@&${targetRole}>`, embeds: [welcomeEmbed], components: [buttons] });
-            await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
-        } catch (err) {
-            console.error(err);
-            await interaction.reply({ content: 'حدث خطأ أثناء محاولة فتح التذكرة.', ephemeral: true });
+                await channel.send({ content: `<@${interaction.user.id}> | <@&${targetRole}>`, embeds: [welcomeEmbed], components: [buttons] });
+                await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
+            } catch (err) {
+                console.error(err);
+                if (!interaction.replied) await interaction.reply({ content: 'حدث خطأ أثناء محاولة فتح التذكرة.', ephemeral: true });
+            }
         }
     }
 
     if (interaction.isButton()) {
-        if (!interaction.member.roles.cache.has(HIGH_SUPPORT_ROLE) && !interaction.member.roles.cache.has(NORMAL_SUPPORT_ROLE)) {
-            return interaction.reply({ content: 'عذراً، هذا الإجراء للمسؤولين فقط.', ephemeral: true });
-        }
-
         if (interaction.customId === 'claim_ticket') {
+            if (!interaction.member.roles.cache.has(HIGH_SUPPORT_ROLE) && !interaction.member.roles.cache.has(NORMAL_SUPPORT_ROLE)) {
+                return interaction.reply({ content: 'عذراً، هذا الإجراء للمسؤولين فقط.', ephemeral: true });
+            }
+
             const disabledRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('claimed').setLabel('تم استلام التذكرة').setStyle(ButtonStyle.Success).setDisabled(true),
                 new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
@@ -118,6 +126,10 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.customId === 'delete_ticket') {
+            if (!interaction.member.roles.cache.has(HIGH_SUPPORT_ROLE) && !interaction.member.roles.cache.has(NORMAL_SUPPORT_ROLE)) {
+                return interaction.reply({ content: 'عذراً، هذا الإجراء للمسؤولين فقط.', ephemeral: true });
+            }
+
             const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
@@ -125,13 +137,13 @@ client.on('interactionCreate', async (interaction) => {
                     .setDescription(`تم إغلاق تذكرة \`${interaction.channel.name}\` بواسطة ${interaction.user}`)
                     .setColor(0xff0000)
                     .setTimestamp();
-                await logChannel.send({ embeds: [logEmbed] });
+                await logChannel.send({ embeds: [logEmbed] }).catch(() => {});
             }
             await interaction.reply('سيتم الحذف خلال 3 ثوانٍ...');
             setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
         }
     }
 });
-;
 
-‏client.login(process.env.TOKEN);
+client.login(process.env.TOKEN);
+
