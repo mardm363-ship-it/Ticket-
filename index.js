@@ -49,7 +49,13 @@ client.on('interactionCreate', async (interaction) => {
     // التعامل مع قائمة الخيارات
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
         const choice = interaction.values[0];
-        if (choice === 'rest') return interaction.reply({ content: '', ephemeral: true });
+        
+        // تعديل خيار الرستارت المطلوب
+        if (choice === 'rest') {
+            return interaction.update({ 
+                components: [interaction.message.components[0]] 
+            }).catch(() => {});
+        }
 
         const titles = { staff: 'الدعم الفني', high: 'دعم العليا', event: 'دعم الايفنت' };
         const modal = new ModalBuilder().setCustomId(`modal_${choice}`).setTitle(titles[choice]);
@@ -76,7 +82,6 @@ client.on('interactionCreate', async (interaction) => {
         else if (type === 'event') { targetRole = EVENT_ROLE; sectionName = 'دعم الايفنت'; }
 
         try {
-            // إنشاء القناة
             const channel = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username}`,
                 type: ChannelType.GuildText,
