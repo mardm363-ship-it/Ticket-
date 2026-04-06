@@ -1,5 +1,19 @@
+
+// --- حل مشكلة Railway و Node القديم (أضف هذا في أول الملف) ---
 const { ReadableStream } = require('node:stream/web');
-global.ReadableStream = ReadableStream;
+if (!global.ReadableStream) global.ReadableStream = ReadableStream;
+
+if (typeof File === 'undefined') {
+    const { Blob } = require('node:buffer');
+    global.File = class File extends Blob {
+        constructor(parts, filename, options = {}) {
+            super(parts, options);
+            this.name = filename;
+            this.lastModified = options.lastModified || Date.now();
+        }
+    };
+}
+// ---------------------------------------------------------
 
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
@@ -20,7 +34,7 @@ const RIGHTS_TEXT = 'نظام سجلات ساحة ريسكبت التاريخي'
 
 const ticketData = new Map();
 
-client.once('ready', () => console.log(`${client.user.tag} جاهز بنظام الأزرار الجديد!`));
+client.once('ready', () => console.log(`${client.user.tag} جاهز ونظام الأزرار يعمل!`));
 
 async function sendLog(embed, file = null, components = []) {
     const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
@@ -57,7 +71,6 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-    // فتح المودال عند اختيار قسم
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
         const choice = interaction.values[0];
         const titles = { staff: 'الدعم الفني', high: 'دعم العليا', event: 'دعم الايفنت' };
@@ -69,13 +82,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
-        // مودال تغيير الاسم
         if (interaction.customId === 'rename_modal') {
             await interaction.channel.setName(interaction.fields.getTextInputValue('new_name'));
             return interaction.reply({ content: `تم تغيير الاسم بنجاح ✅`, ephemeral: true });
         }
 
-        // إنشاء التذكرة
         const type = interaction.customId.replace('modal_', '');
         let targetRole, sectionName;
         if (type === 'staff') { targetRole = STAFF_ROLE; sectionName = 'الدعم الفني'; }
@@ -94,10 +105,8 @@ client.on('interactionCreate', async (interaction) => {
             });
 
             ticketData.set(channel.id, {
-                opener: interaction.user,
                 openerID: interaction.user.id,
                 section: sectionName,
-                claimedBy: null,
                 claimedID: 'لم تستلم',
                 openTime: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Riyadh' })
             });
@@ -110,7 +119,6 @@ client.on('interactionCreate', async (interaction) => {
                     { name: 'المشكله :', value: `\`\`\`${interaction.fields.getTextInputValue('issue_text')}\`\`\`` }
                 ).setColor(0x2b2d31).setFooter({ text: 'ساحة ريسكبت' });
 
-            // الأزرار الجديدة داخل التذكرة
             const buttons = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكره').setEmoji('1490731444274725086').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('rename_ticket_btn').setLabel('تعديل الاسم').setEmoji('1490731519428526343').setStyle(ButtonStyle.Primary),
@@ -125,7 +133,6 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton()) {
         const hasPerms = interaction.member.roles.cache.has(HIGH_ROLE) || interaction.member.roles.cache.has(STAFF_ROLE) || interaction.member.roles.cache.has(EVENT_ROLE);
 
-        // زر معلومات اللوج (في روم اللوج)
         if (interaction.customId.startsWith('log_info_')) {
             if (!hasPerms) return interaction.reply({ content: 'للإدارة فقط.', ephemeral: true });
             const tID = interaction.customId.replace('log_info_', '');
@@ -136,28 +143,24 @@ client.on('interactionCreate', async (interaction) => {
                 .setTitle('📋 تفاصيل السجل التاريخي')
                 .addFields(
                     { name: '👤 صاحب التذكرة:', value: `<@${data.openerID}>`, inline: true },
-                    { name: '🛠️ المستلم:', value: data.claimedBy ? `<@${data.claimedID}>` : 'لم تستلم', inline: true },
+                    { name: '🛠️ المستلم:', value: data.claimedID !== 'لم تستلم' ? `<@${data.claimedID}>` : 'لم تستلم', inline: true },
                     { name: '⏰ وقت الفتح:', value: `\`${data.openTime}\``, inline: false }
                 ).setColor(0x5865f2);
             return interaction.reply({ embeds: [infoEmbed], ephemeral: true });
         }
 
-        // أزرار التحكم بالتذكرة
         if (!hasPerms) return interaction.reply({ content: 'للإدارة فقط.', ephemeral: true });
 
-        // 1. استلام التذكرة
         if (interaction.customId === 'claim_ticket') {
             const data = ticketData.get(interaction.channel.id);
-            if (data) { data.claimedBy = interaction.user.tag; data.claimedID = interaction.user.id; }
+            if (data) data.claimedID = interaction.user.id;
             
             const row = ActionRowBuilder.from(interaction.message.components[0]);
             row.components[0].setDisabled(true).setLabel('تم الاستلام');
-            
             await interaction.update({ components: [row] });
             await interaction.followUp({ content: `✅ تم استلام التذكرة بواسطة <@${interaction.user.id}>` });
         }
 
-        // 2. تعديل الاسم
         if (interaction.customId === 'rename_ticket_btn') {
             const modal = new ModalBuilder().setCustomId('rename_modal').setTitle('تعديل اسم التذكرة');
             const input = new TextInputBuilder().setCustomId('new_name').setLabel('الاسم الجديد:').setStyle(TextInputStyle.Short).setRequired(true);
@@ -165,21 +168,15 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.showModal(modal);
         }
 
-        // 3. طلب الإغلاق (ظهور خيارات التأكيد)
         if (interaction.customId === 'close_request') {
-            const confirmEmbed = new EmbedBuilder()
-                .setDescription('**هل أنت متأكد من إغلاق هذه التذكرة؟**')
-                .setColor(0xf1c40f);
-
+            const confirmEmbed = new EmbedBuilder().setDescription('**هل أنت متأكد من إغلاق هذه التذكرة؟**').setColor(0xf1c40f);
             const confirmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('confirm_close').setLabel('تاكيد إغلاق التذكرة').setEmoji('1490731480731615507').setStyle(ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId('cancel_close').setLabel('فتح التذكرة').setEmoji('1490732764935360532').setStyle(ButtonStyle.Success)
             );
-
             await interaction.reply({ embeds: [confirmEmbed], components: [confirmRow] });
         }
 
-        // 4. تأكيد الإغلاق والحذف (إرسال اللوج)
         if (interaction.customId === 'confirm_close') {
             await interaction.update({ content: 'جاري الحفظ وإرسال السجلات...', embeds: [], components: [] });
             const data = ticketData.get(interaction.channel.id);
@@ -199,12 +196,11 @@ client.on('interactionCreate', async (interaction) => {
                 );
 
                 await sendLog(closeLog, attachment, [logRow]);
-            } catch (e) { console.log(e); }
+            } catch (e) { console.log("Transcript Error:", e); }
 
             setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
         }
 
-        // 5. إلغاء الإغلاق (فتح التذكرة من جديد)
         if (interaction.customId === 'cancel_close') {
             await interaction.message.delete().catch(() => {});
         }
@@ -212,3 +208,5 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.TOKEN);
+
+
