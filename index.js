@@ -49,7 +49,7 @@ client.on('interactionCreate', async (interaction) => {
     // التعامل مع قائمة الخيارات
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
         const choice = interaction.values[0];
-        if (choice === 'rest') return interaction.reply({ content: 'تم إعادة تهيئة القائمة بنجاح ✅', ephemeral: true });
+        if (choice === 'rest') return interaction.reply({ content: '', ephemeral: true });
 
         const titles = { staff: 'الدعم الفني', high: 'دعم العليا', event: 'دعم الايفنت' };
         const modal = new ModalBuilder().setCustomId(`modal_${choice}`).setTitle(titles[choice]);
