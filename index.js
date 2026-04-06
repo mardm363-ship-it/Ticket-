@@ -8,7 +8,7 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// إعدادات الرتب والقنوات
+// إعدادات الرتب والقنوات - تأكد من صحتها في سيرفرك
 const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
 const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
 const EVENT_SUPPORT_ROLE = '1465362786467971357'; 
@@ -66,57 +66,62 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
+        // لوحة تغيير الاسم
         if (interaction.customId === 'rename_modal') {
             const newName = interaction.fields.getTextInputValue('new_name');
             await interaction.channel.setName(newName);
             return interaction.reply({ content: `تم تغيير اسم التذكرة إلى: **${newName}**`, ephemeral: true });
         }
 
+        // فتح التذكرة
         const type = interaction.customId.split('_')[1];
-        let targetRole, sectionName, welcomeName;
+        let targetRole, sectionName;
 
         if (type === 'staff_support') {
             targetRole = NORMAL_SUPPORT_ROLE;
             sectionName = 'الدعم الفني';
-            welcomeName = 'الدعم الفني';
         } else if (type === 'high_support') {
             targetRole = HIGH_SUPPORT_ROLE;
             sectionName = 'دعم العليا';
-            welcomeName = 'دعم العليا';
         } else if (type === 'event_support') {
             targetRole = EVENT_SUPPORT_ROLE;
             sectionName = 'دعم الايفنت';
-            welcomeName = 'دعم الايفنت';
         }
 
-        const channel = await interaction.guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
-            type: ChannelType.GuildText,
-            permissionOverwrites: [
-                { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                { id: targetRole, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-            ],
-        });
+        try {
+            const channel = await interaction.guild.channels.create({
+                name: `ticket-${interaction.user.username}`,
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                    { id: targetRole, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                ],
+            });
 
-        const welcomeEmbed = new EmbedBuilder()
-            .setDescription(`اهلا بك في **${welcomeName}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
-            .addFields(
-                { name: 'نوع القسم :', value: `\`${sectionName}\``, inline: false },
-                { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
-                { name: 'المشكله او الاستفسار :', value: `\`\`\`${interaction.fields.getTextInputValue('issue_text')}\`\`\``, inline: false }
-            )
-            .setColor(0x2b2d31)
-            .setFooter({ text: RIGHTS_TEXT });
+            const welcomeEmbed = new EmbedBuilder()
+                .setDescription(`اهلا بك في **${sectionName}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
+                .addFields(
+                    { name: 'نوع القسم :', value: `\`${sectionName}\``, inline: false },
+                    { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
+                    { name: 'المشكله او الاستفسار :', value: `\`\`\`${interaction.fields.getTextInputValue('issue_text')}\`\`\``, inline: false }
+                )
+                .setColor(0x2b2d31)
+                .setFooter({ text: RIGHTS_TEXT });
 
-        const buttons = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('rename_ticket').setLabel('تغيير اسم التذكرة').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
-        );
+            const buttons = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('rename_ticket').setLabel('تغيير اسم التذكرة').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
+            );
 
-        await channel.send({ content: `<@${interaction.user.id}> | <@&${targetRole}>`, embeds: [welcomeEmbed], components: [buttons] });
-        await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
+            await channel.send({ content: `<@${interaction.user.id}> | <@&${targetRole}>`, embeds: [welcomeEmbed], components: [buttons] });
+            await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
+
+        } catch (error) {
+            console.error(error);
+            await interaction.reply({ content: 'حدث خطأ أثناء محاولة فتح التذكرة، تأكد من صلاحيات البوت.', ephemeral: true });
+        }
     }
 
     if (interaction.isButton()) {
@@ -128,12 +133,15 @@ client.on('interactionCreate', async (interaction) => {
 
         if (interaction.customId === 'claim_ticket') {
             const claimEmbed = new EmbedBuilder().setDescription(`✅ تم استلام التدكرة بواسطة : <@${interaction.user.id}>`).setColor(0x43b581);
-            const oldRows = interaction.message.components[0].components.map(btn => {
-                const b = ButtonBuilder.from(btn);
-                if (btn.customId === 'claim_ticket') b.setDisabled(true).setLabel('تم الاستلام');
-                return b;
+            
+            // تعديل الأزرار لتعطيل الاستلام فقط
+            const components = interaction.message.components[0].components.map(button => {
+                const updated = ButtonBuilder.from(button);
+                if (button.customId === 'claim_ticket') updated.setDisabled(true).setLabel('تم الاستلام');
+                return updated;
             });
-            await interaction.update({ components: [new ActionRowBuilder().addComponents(oldRows)] });
+
+            await interaction.update({ components: [new ActionRowBuilder().addComponents(components)] });
             await interaction.followUp({ embeds: [claimEmbed] });
         }
 
