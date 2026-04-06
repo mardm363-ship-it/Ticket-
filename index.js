@@ -13,7 +13,7 @@ const HIGH_SUPPORT_ROLE = '1488903490381152450';
 const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
 const LOG_CHANNEL_ID = '1488858730924605491'; 
 const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
-const RIGHTS_TEXT = 'جميع الحقوق محفوظة لـ ساحة ريسكبت';
+const RIGHTS_TEXT = 'اهلاً بك في ساحة ريسكبت';
 
 client.once('ready', () => console.log(`${client.user.tag} جاهز لخدمة ساحة ريسكبت!`));
 
