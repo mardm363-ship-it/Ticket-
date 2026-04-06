@@ -1,15 +1,17 @@
 {
-  "name": "reskpet-ticket-bot",
+  "name": "shehab-system-bot",
   "version": "1.0.0",
+  "description": "Discord Ticket Bot for Respect Arena",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
+    "discord-html-transcripts": "^3.1.7",
     "dotenv": "^16.4.5"
   },
   "engines": {
-    "node": "16.x"
+    "node": ">=16.0.0"
   }
 }
