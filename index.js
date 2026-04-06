@@ -8,15 +8,15 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// إعدادات الرتب والقنوات - تأكد من صحتها في سيرفرك
+// الإعدادات - تم تصحيح رتبة الايفنت
 const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
 const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
-const EVENT_SUPPORT_ROLE = '1465362786467971357'; 
+const EVENT_SUPPORT_ROLE = '1465362786467971357'; // تم التأكد من الرقم
 const LOG_CHANNEL_ID = '1488858730924605491'; 
 const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
 const RIGHTS_TEXT = 'اهلاً بك في ساحة ريسكبت';
 
-client.once('ready', () => console.log(`${client.user.tag} جاهز!`));
+client.once('ready', () => console.log(`${client.user.tag} جاهز لخدمتك!`));
 
 client.on('messageCreate', async (message) => {
     if (message.content === '!تكت') {
@@ -66,14 +66,12 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
-        // لوحة تغيير الاسم
         if (interaction.customId === 'rename_modal') {
             const newName = interaction.fields.getTextInputValue('new_name');
             await interaction.channel.setName(newName);
             return interaction.reply({ content: `تم تغيير اسم التذكرة إلى: **${newName}**`, ephemeral: true });
         }
 
-        // فتح التذكرة
         const type = interaction.customId.split('_')[1];
         let targetRole, sectionName;
 
@@ -119,8 +117,10 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
 
         } catch (error) {
-            console.error(error);
-            await interaction.reply({ content: 'حدث خطأ أثناء محاولة فتح التذكرة، تأكد من صلاحيات البوت.', ephemeral: true });
+            console.error("Error creating channel:", error);
+            if (!interaction.replied) {
+                await interaction.reply({ content: 'حدث خطأ تقني، تأكد من وجود الرتب في السيرفر.', ephemeral: true });
+            }
         }
     }
 
@@ -134,7 +134,6 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.customId === 'claim_ticket') {
             const claimEmbed = new EmbedBuilder().setDescription(`✅ تم استلام التدكرة بواسطة : <@${interaction.user.id}>`).setColor(0x43b581);
             
-            // تعديل الأزرار لتعطيل الاستلام فقط
             const components = interaction.message.components[0].components.map(button => {
                 const updated = ButtonBuilder.from(button);
                 if (button.customId === 'claim_ticket') updated.setDisabled(true).setLabel('تم الاستلام');
