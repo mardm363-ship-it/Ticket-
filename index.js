@@ -1,23 +1,5 @@
-
-// --- حل مشكلة Railway و Node القديم (أضف هذا في أول الملف) ---
-const { ReadableStream } = require('node:stream/web');
-if (!global.ReadableStream) global.ReadableStream = ReadableStream;
-
-if (typeof File === 'undefined') {
-    const { Blob } = require('node:buffer');
-    global.File = class File extends Blob {
-        constructor(parts, filename, options = {}) {
-            super(parts, options);
-            this.name = filename;
-            this.lastModified = options.lastModified || Date.now();
-        }
-    };
-}
-// ---------------------------------------------------------
-
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const discordTranscripts = require('discord-html-transcripts');
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -32,17 +14,15 @@ const LOG_CHANNEL_ID = '1488858730924605491';
 const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
 const RIGHTS_TEXT = 'نظام سجلات ساحة ريسكبت التاريخي';
 
+// ذاكرة مؤقتة لحفظ البيانات
 const ticketData = new Map();
 
-client.once('ready', () => console.log(`${client.user.tag} جاهز ونظام الأزرار يعمل!`));
+client.once('ready', () => console.log(`✅ ${client.user.tag} يعمل بنظام اللوج السريع (بدون ملفات)`));
 
-async function sendLog(embed, file = null, components = []) {
+async function sendLog(embed, components = []) {
     const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
     if (logChannel) {
-        const payload = { embeds: [embed] };
-        if (file) payload.files = [file];
-        if (components.length > 0) payload.components = components;
-        await logChannel.send(payload).catch(() => {});
+        await logChannel.send({ embeds: [embed], components: components }).catch(e => console.log("خطأ في اللوج:", e));
     }
 }
 
@@ -108,7 +88,8 @@ client.on('interactionCreate', async (interaction) => {
                 openerID: interaction.user.id,
                 section: sectionName,
                 claimedID: 'لم تستلم',
-                openTime: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Riyadh' })
+                openTime: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Riyadh' }),
+                problem: interaction.fields.getTextInputValue('issue_text')
             });
 
             const welcomeEmbed = new EmbedBuilder()
@@ -137,15 +118,18 @@ client.on('interactionCreate', async (interaction) => {
             if (!hasPerms) return interaction.reply({ content: 'للإدارة فقط.', ephemeral: true });
             const tID = interaction.customId.replace('log_info_', '');
             const data = ticketData.get(tID);
-            if (!data) return interaction.reply({ content: 'البيانات غير متوفرة حالياً.', ephemeral: true });
+            if (!data) return interaction.reply({ content: 'عذراً، البيانات ممسوحة من الذاكرة.', ephemeral: true });
 
             const infoEmbed = new EmbedBuilder()
-                .setTitle('📋 تفاصيل السجل التاريخي')
+                .setTitle('📋 تفاصيل التذكرة')
+                .setColor(0x5865f2)
                 .addFields(
                     { name: '👤 صاحب التذكرة:', value: `<@${data.openerID}>`, inline: true },
                     { name: '🛠️ المستلم:', value: data.claimedID !== 'لم تستلم' ? `<@${data.claimedID}>` : 'لم تستلم', inline: true },
-                    { name: '⏰ وقت الفتح:', value: `\`${data.openTime}\``, inline: false }
-                ).setColor(0x5865f2);
+                    { name: '📂 القسم:', value: `\`${data.section}\``, inline: true },
+                    { name: '⏰ وقت الفتح:', value: `\`${data.openTime}\``, inline: true },
+                    { name: '📝 المشكلة الأصلية:', value: `\`\`\`${data.problem}\`\`\`` }
+                );
             return interaction.reply({ embeds: [infoEmbed], ephemeral: true });
         }
 
@@ -154,7 +138,6 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.customId === 'claim_ticket') {
             const data = ticketData.get(interaction.channel.id);
             if (data) data.claimedID = interaction.user.id;
-            
             const row = ActionRowBuilder.from(interaction.message.components[0]);
             row.components[0].setDisabled(true).setLabel('تم الاستلام');
             await interaction.update({ components: [row] });
@@ -178,26 +161,19 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (interaction.customId === 'confirm_close') {
-            await interaction.update({ content: 'جاري الحفظ وإرسال السجلات...', embeds: [], components: [] });
+            await interaction.update({ content: 'جاري الحذف وإرسال السجل...', embeds: [], components: [] });
             const data = ticketData.get(interaction.channel.id);
 
-            try {
-                const attachment = await discordTranscripts.createTranscript(interaction.channel, {
-                    limit: -1, fileName: `transcript-${interaction.channel.name}.html`, saveImages: true, poweredBy: false
-                });
+            const closeLog = new EmbedBuilder()
+                .setTitle('🔒 تذكرة مغلقة')
+                .setDescription(`أغلق <@${interaction.user.id}> تذكرة \`${interaction.channel.name}\``)
+                .setColor(0xe74c3c).setTimestamp().setFooter({ text: RIGHTS_TEXT });
 
-                const closeLog = new EmbedBuilder()
-                    .setTitle('🔒 سجل إغلاق تذكرة')
-                    .setDescription(`أغلق <@${interaction.user.id}> تذكرة \`${interaction.channel.name}\``)
-                    .setColor(0xe74c3c).setTimestamp();
+            const logRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`log_info_${interaction.channel.id}`).setEmoji('1490729497467555910').setStyle(ButtonStyle.Secondary)
+            );
 
-                const logRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`log_info_${interaction.channel.id}`).setEmoji('1490729497467555910').setStyle(ButtonStyle.Secondary)
-                );
-
-                await sendLog(closeLog, attachment, [logRow]);
-            } catch (e) { console.log("Transcript Error:", e); }
-
+            await sendLog(closeLog, [logRow]);
             setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
         }
 
@@ -208,5 +184,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.TOKEN);
-
-
