@@ -8,15 +8,16 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// الإعدادات - تم تصحيح رتبة الايفنت
-const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
-const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
-const EVENT_SUPPORT_ROLE = '1465362786467971357'; // تم التأكد من الرقم
+// إعدادات الرتب الصحيحة
+const STAFF_ROLE = '1459353728233636022'; 
+const HIGH_ROLE = '1488903490381152450'; 
+const EVENT_ROLE = '1465362786467971357'; 
+
 const LOG_CHANNEL_ID = '1488858730924605491'; 
 const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
 const RIGHTS_TEXT = 'اهلاً بك في ساحة ريسكبت';
 
-client.once('ready', () => console.log(`${client.user.tag} جاهز لخدمتك!`));
+client.once('ready', () => console.log(`${client.user.tag} جاهز!`));
 
 client.on('messageCreate', async (message) => {
     if (message.content === '!تكت') {
@@ -47,10 +48,7 @@ client.on('interactionCreate', async (interaction) => {
     
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
         const choice = interaction.values[0];
-
-        if (choice === 'rest_menu') {
-            return interaction.reply({ content: 'تم إعادة تهيئة القائمة بنجاح ✅', ephemeral: true });
-        }
+        if (choice === 'rest_menu') return interaction.reply({ content: 'تم إعادة تهيئة القائمة بنجاح ✅', ephemeral: true });
 
         let modalTitle = '';
         if (choice === 'staff_support') modalTitle = 'الدعم الفني';
@@ -76,13 +74,13 @@ client.on('interactionCreate', async (interaction) => {
         let targetRole, sectionName;
 
         if (type === 'staff_support') {
-            targetRole = NORMAL_SUPPORT_ROLE;
+            targetRole = STAFF_ROLE;
             sectionName = 'الدعم الفني';
         } else if (type === 'high_support') {
-            targetRole = HIGH_SUPPORT_ROLE;
+            targetRole = HIGH_ROLE;
             sectionName = 'دعم العليا';
         } else if (type === 'event_support') {
-            targetRole = EVENT_SUPPORT_ROLE;
+            targetRole = EVENT_ROLE;
             sectionName = 'دعم الايفنت';
         }
 
@@ -98,7 +96,7 @@ client.on('interactionCreate', async (interaction) => {
             });
 
             const welcomeEmbed = new EmbedBuilder()
-                .setDescription(`اهلا بك في **${sectionName}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
+                .setDescription(`اهلا بك في **${sectionName}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🙏🏻`)
                 .addFields(
                     { name: 'نوع القسم :', value: `\`${sectionName}\``, inline: false },
                     { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
@@ -117,29 +115,25 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
 
         } catch (error) {
-            console.error("Error creating channel:", error);
-            if (!interaction.replied) {
-                await interaction.reply({ content: 'حدث خطأ تقني، تأكد من وجود الرتب في السيرفر.', ephemeral: true });
-            }
+            console.error(error);
+            if (!interaction.replied) await interaction.reply({ content: 'حدث خطأ، تأكد من صلاحيات البوت.', ephemeral: true });
         }
     }
 
     if (interaction.isButton()) {
-        const hasPerms = interaction.member.roles.cache.has(HIGH_SUPPORT_ROLE) || 
-                         interaction.member.roles.cache.has(NORMAL_SUPPORT_ROLE) || 
-                         interaction.member.roles.cache.has(EVENT_SUPPORT_ROLE);
+        const hasPerms = interaction.member.roles.cache.has(HIGH_ROLE) || 
+                         interaction.member.roles.cache.has(STAFF_ROLE) || 
+                         interaction.member.roles.cache.has(EVENT_ROLE);
 
         if (!hasPerms) return interaction.reply({ content: 'للإدارة فقط.', ephemeral: true });
 
         if (interaction.customId === 'claim_ticket') {
             const claimEmbed = new EmbedBuilder().setDescription(`✅ تم استلام التدكرة بواسطة : <@${interaction.user.id}>`).setColor(0x43b581);
-            
             const components = interaction.message.components[0].components.map(button => {
                 const updated = ButtonBuilder.from(button);
                 if (button.customId === 'claim_ticket') updated.setDisabled(true).setLabel('تم الاستلام');
                 return updated;
             });
-
             await interaction.update({ components: [new ActionRowBuilder().addComponents(components)] });
             await interaction.followUp({ embeds: [claimEmbed] });
         }
