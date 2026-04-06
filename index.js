@@ -1,197 +1,117 @@
 const { ReadableStream } = require('node:stream/web');
 global.ReadableStream = ReadableStream;
 
-const { 
-    Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, 
-    StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, 
-    ChannelType, PermissionFlagsBits, ModalBuilder, 
-    TextInputBuilder, TextInputStyle, Collection 
-} = require('discord.js');
+require('dotenv').config();
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
-    ]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// --- الإعدادات المتقدمة ---
-const CONFIG = {
-    TOKEN: process.env.TOKEN,
-    ADMIN_ROLE_ID: '1472225010134421676',
-    LOG_CHANNEL_ID: '1473378884857630821',
-    CATEGORY_ID: '1473378884857630820', // الفئة التي تفتح فيها التذاكر
-    MAIN_IMAGE: 'https://cdn.discordapp.com/attachments/1473378884857630821/1477532261963403284/2C52B4D6-9301-46A4-8BC2-5D7127E89961.png',
-    COLORS: { DEFAULT: 0x808080, SUCCESS: 0x00FF00, ERROR: 0xFF0000, BLUE: 0x0099FF }
-};
+// الإعدادات
+const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
+const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
+const LOG_CHANNEL_ID = '1488858730924605491'; 
+const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
+const RIGHTS_TEXT = 'جميع الحقوق محفوظة لـ ساحة ريسكبت';
 
-client.once('ready', () => {
-    console.log(`[SYSTEM] ${client.user.tag} Is Online! Strongest Ticket System Active.`);
-});
+client.once('ready', () => console.log(`${client.user.tag} جاهز لخدمة ساحة ريسكبت!`));
 
-// 1. أمر إنشاء قائمة التذاكر الرئيسية
 client.on('messageCreate', async (message) => {
-    if (message.content === '!setup-ticket') {
+    if (message.content === '!تكت') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-        const mainEmbed = new EmbedBuilder()
-            .setTitle('مركز الدعم الفني | Support Center')
-            .setDescription('أهلاً بك في نظام التذاكر المتطور. يرجى اختيار القسم المناسب من القائمة أدناه.')
-            .addFields(
-                { name: '⚠️ تنبيه', value: 'يرجى عدم فتح تذكرة بدون سبب واضح، الصبر والهدوء يساعدنا على خدمتك بشكل أسرع.' }
-            )
-            .setColor(CONFIG.COLORS.DEFAULT)
-            .setImage(CONFIG.IMAGE_OR_BANNER || CONFIG.MAIN_IMAGE)
-            .setFooter({ text: 'VAULTA System', iconURL: client.user.displayAvatarURL() });
-
+        const embed = new EmbedBuilder()
+            .setTitle('مركز الدعم الفني | ساحة ريسكبت')
+            .setDescription('يرجى اختيار القسم المناسب لفتح تذكرة وسيتم الرد عليك فوراً.')
+            .setColor(0x2b2d31)
+            .setImage(MAIN_IMAGE)
+            .setFooter({ text: RIGHTS_TEXT });
         const menu = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
-                .setCustomId('main_ticket_menu')
-                .setPlaceholder('إضغط هنا لاختيار القسم')
+                .setCustomId('ticket_select')
+                .setPlaceholder('إضغط هنا لفتح تذكرة')
                 .addOptions([
-                    { label: 'قسم الشراء', description: 'لطلب المنتجات والخدمات', value: 'dept_buy', emoji: '🛒' },
-                    { label: 'الدعم الفني', description: 'لحل المشاكل التقنية', value: 'dept_support', emoji: '🛠️' },
-                    { label: 'الإدارة العليا', description: 'للمشاكل الخاصة والشكاوى', value: 'dept_admin', emoji: '👑' }
+                    { label: 'دعم العليا', value: 'high_support' },
+                    { label: 'الدعم الفني', value: 'normal_support' }
                 ])
         );
-
-        await message.channel.send({ embeds: [mainEmbed], components: [menu] });
+        await message.channel.send({ embeds: [embed], components: [menu] });
     }
 });
 
-// 2. معالجة التفاعلات (Interaction Handling)
 client.on('interactionCreate', async (interaction) => {
-    
-    // أ- فتح المودال عند الاختيار من القائمة
-    if (interaction.isStringSelectMenu() && interaction.customId === 'main_ticket_menu') {
-        const dept = interaction.values[0];
-        let title = "معلومات إضافية";
-        
-        const modal = new ModalBuilder().setCustomId(`modal_${dept}`).setTitle(title);
-        const input1 = new TextInputBuilder()
-            .setCustomId('subject')
-            .setLabel('موضوع التذكرة / المشكلة')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('مثلاً: مشكلة في الدفع')
-            .setRequired(true);
-
-        const input2 = new TextInputBuilder()
-            .setCustomId('description')
-            .setLabel('التفاصيل')
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
+        const choice = interaction.values[0];
+        const modal = new ModalBuilder()
+            .setCustomId(`modal_${choice}`)
+            .setTitle(choice === 'high_support' ? 'دعم العليا' : 'الدعم الفني');
+        const issue = new TextInputBuilder()
+            .setCustomId('issue_text')
+            .setLabel('اكتب المشكله')
             .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('يرجى شرح التفاصيل هنا...')
+            .setPlaceholder('يرجى كتابة تفاصيل المشكلة هنا...')
             .setRequired(true);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(input1), new ActionRowBuilder().addComponents(input2));
+        modal.addComponents(new ActionRowBuilder().addComponents(issue));
         await interaction.showModal(modal);
     }
-
-    // ب- معالجة بيانات المودال وإنشاء الروم
     if (interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith('modal_dept_')) {
-            await interaction.deferReply({ ephemeral: true });
-
-            const deptKey = interaction.customId.replace('modal_dept_', '');
-            const subject = interaction.fields.getTextInputValue('subject');
-            const description = interaction.fields.getTextInputValue('description');
-            
-            const deptNames = { buy: '🛒 شراء', support: '🛠️ دعم', admin: '👑 العليا' };
-            const channelName = `${deptKey}-${interaction.user.username}`;
-
-            const ticketChannel = await interaction.guild.channels.create({
+        const type = interaction.customId.split('_')[1];
+        const isHigh = type === 'high_support';
+        const targetRole = isHigh ? HIGH_SUPPORT_ROLE : NORMAL_SUPPORT_ROLE;
+        const channelName = `ticket-${interaction.user.username}`;
+        try {
+            const channel = await interaction.guild.channels.create({
                 name: channelName,
                 type: ChannelType.GuildText,
-                parent: CONFIG.CATEGORY_ID,
                 permissionOverwrites: [
                     { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles] },
-                    { id: CONFIG.ADMIN_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                    { id: targetRole, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
                 ],
             });
-
             const welcomeEmbed = new EmbedBuilder()
-                .setAuthor({ name: `تذكرة جديدة: ${deptNames[deptKey] || 'عام'}`, iconURL: interaction.user.displayAvatarURL() })
-                .setDescription(`أهلاً بك في القسم المختص. نتمنى منك الهدوء والصبر وعدم منشن الإدارة وسيتم الرد عليك في أسرع وقت 👋🏻`)
+                .setDescription(`اهلا بك في **${isHigh ? 'دعم العليا' : 'الدعم الفني'}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
                 .addFields(
-                    { name: '👤 صاحب التذكرة', value: `${interaction.user}`, inline: true },
-                    { name: '📝 الموضوع', value: subject, inline: true },
-                    { name: '📄 التفاصيل المذكورة', value: `\`\`\`${description}\`\`\`` }
+                    { name: 'نوع القسم :', value: `\`${isHigh ? 'دعم العليا' : 'الدعم الفني'}\``, inline: false },
+                    { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
+                    { name: 'المشكله او الاستفسار :', value: `\`\`\`${interaction.fields.getTextInputValue('issue_text')}\`\`\``, inline: false }
                 )
-                .setColor(CONFIG.COLORS.BLUE)
-                .setTimestamp();
-
-            const controlButtons = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('btn_claim').setLabel('استلام').setStyle(ButtonStyle.Success).setEmoji('✅'),
-                new ButtonBuilder().setCustomId('btn_rename').setLabel('تغيير الاسم').setStyle(ButtonStyle.Primary).setEmoji('📝'),
-                new ButtonBuilder().setCustomId('btn_close').setLabel('إغلاق').setStyle(ButtonStyle.Danger).setEmoji('🔒')
+                .setColor(0x2b2d31)
+                .setFooter({ text: RIGHTS_TEXT });
+            const buttons = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
             );
-
-            await ticketChannel.send({ 
-                content: `${interaction.user} | <@&${CONFIG.ADMIN_ROLE_ID}>`, 
-                embeds: [welcomeEmbed], 
-                components: [controlButtons] 
-            });
-
-            await interaction.editReply({ content: `تم فتح تذكرتك بنجاح: ${ticketChannel}` });
-        }
-
-        // مودال تغيير الاسم
-        if (interaction.customId === 'modal_rename') {
-            const newName = interaction.fields.getTextInputValue('new_name_input');
-            await interaction.channel.setName(newName);
-            return interaction.reply({ content: `✅ تم تغيير اسم التذكرة إلى: **${newName}**` });
+            await channel.send({ content: `<@${interaction.user.id}> | <@&${targetRole}>`, embeds: [welcomeEmbed], components: [buttons] });
+            await interaction.reply({ content: `تم فتح تذكرتك: ${channel}`, ephemeral: true });
+        } catch (err) {
+            console.error(err);
         }
     }
-
-    // ج- أزرار التحكم داخل التذكرة
     if (interaction.isButton()) {
-        const { customId, channel, user, member } = interaction;
-
-        // التحقق من الرتبة الإدارية للأزرار الحساسة
-        if (!member.roles.cache.has(CONFIG.ADMIN_ROLE_ID)) {
-            return interaction.reply({ content: '❌ هذا الزر مخصص للإدارة فقط!', ephemeral: true });
+        if (!interaction.member.roles.cache.has(HIGH_SUPPORT_ROLE) && !interaction.member.roles.cache.has(NORMAL_SUPPORT_ROLE)) {
+            return interaction.reply({ content: 'عذراً، هذا الإجراء للمسؤولين فقط.', ephemeral: true });
         }
-
-        if (customId === 'btn_claim') {
-            await interaction.reply({ 
-                embeds: [new EmbedBuilder().setColor(CONFIG.COLORS.SUCCESS).setDescription(`✅ تم استلام التذكرة بواسطة: ${user}`)] 
-            });
-            await channel.setName(`handled-${user.username}`);
+        if (interaction.customId === 'claim_ticket') {
+            const disabledRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('claimed').setLabel('تم استلام التذكرة').setStyle(ButtonStyle.Success).setDisabled(true),
+                new ButtonBuilder().setCustomId('delete_ticket').setLabel('إغلاق وحفظ').setStyle(ButtonStyle.Danger)
+            );
+            await interaction.update({ components: [disabledRow] });
+            await interaction.followUp({ content: `تم استلام التذكرة بواسطة <@${interaction.user.id}>` });
         }
-
-        if (customId === 'btn_rename') {
-            const renameModal = new ModalBuilder().setCustomId('modal_rename').setTitle('تغيير اسم التذكرة');
-            const nameInput = new TextInputBuilder()
-                .setCustomId('new_name_input')
-                .setLabel('الاسم الجديد للروم')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-            renameModal.addComponents(new ActionRowBuilder().addComponents(nameInput));
-            await interaction.showModal(renameModal);
-        }
-
-        if (customId === 'btn_close') {
-            await interaction.reply('🔒 سيتم إغلاق التذكرة وأرشفة البيانات خلال 5 ثوانٍ...');
-            
-            // نظام اللوج (Log System)
-            const logChannel = client.channels.cache.get(CONFIG.LOG_CHANNEL_ID);
+        if (interaction.customId === 'delete_ticket') {
+            const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
-                logChannel.send({
-                    embeds: [
-                        new EmbedBuilder()
-                            .setTitle('تقرير إغلاق تذكرة')
-                            .addFields(
-                                { name: 'التذكرة', value: channel.name, inline: true },
-                                { name: 'بواسطة', value: user.tag, inline: true }
-                            )
-                            .setColor(CONFIG.COLORS.ERROR)
-                            .setTimestamp()
-                    ]
-                });
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('سجل إغلاق تذكرة')
+                    .setDescription(`تم إغلاق تذكرة \`${interaction.channel.name}\` بواسطة ${interaction.user}`)
+                    .setColor(0xff0000)
+                    .setTimestamp();
+                await logChannel.send({ embeds: [logEmbed] }).catch(() => {});
             }
-            setTimeout(() => channel.delete().catch(() => {}), 5000);
+            await interaction.reply('سيتم الحذف...');
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
         }
     }
 });
