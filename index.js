@@ -1,3 +1,6 @@
+const { ReadableStream } = require('node:stream/web');
+global.ReadableStream = ReadableStream;
+
 const { 
     Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, 
     StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, 
