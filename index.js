@@ -8,9 +8,9 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-// الإعدادات
-const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
+// إعدادات الرتب والقنوات
 const NORMAL_SUPPORT_ROLE = '1459353728233636022'; 
+const HIGH_SUPPORT_ROLE = '1488903490381152450'; 
 const EVENT_SUPPORT_ROLE = '1465362786467971357'; 
 const LOG_CHANNEL_ID = '1488858730924605491'; 
 const MAIN_IMAGE = 'https://cdn.discordapp.com/attachments/1488857849349017802/1489642814357639418/background.png';
@@ -33,7 +33,7 @@ client.on('messageCreate', async (message) => {
                 .setCustomId('ticket_select')
                 .setPlaceholder('إضغط هنا لفتح تذكرة')
                 .addOptions([
-                    { label: 'Staff Support', value: 'normal_support' },
+                    { label: 'Staff Support', value: 'staff_support' },
                     { label: 'High Support', value: 'high_support' },
                     { label: 'Event Support', value: 'event_support' },
                     { label: 'Rest Menu', value: 'rest_menu' }
@@ -44,6 +44,7 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+    
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
         const choice = interaction.values[0];
 
@@ -52,16 +53,13 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         let modalTitle = '';
-        if (choice === 'high_support') modalTitle = 'الإدارة العليا';
-        else if (choice === 'normal_support') modalTitle = 'الدعم الفني';
-        else if (choice === 'event_support') modalTitle = 'دعم الايفنت';
+        if (choice === 'staff_support') modalTitle = 'الدعم الفني';
+        if (choice === 'high_support') modalTitle = 'دعم العليا';
+        if (choice === 'event_support') modalTitle = 'دعم الايفنت';
 
         const modal = new ModalBuilder().setCustomId(`modal_${choice}`).setTitle(modalTitle);
         const issue = new TextInputBuilder()
-            .setCustomId('issue_text')
-            .setLabel('اشرح مشكلتك')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true);
+            .setCustomId('issue_text').setLabel('اشرح مشكلتك').setStyle(TextInputStyle.Paragraph).setRequired(true);
 
         modal.addComponents(new ActionRowBuilder().addComponents(issue));
         await interaction.showModal(modal);
@@ -75,17 +73,20 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         const type = interaction.customId.split('_')[1];
-        let targetRole, sectionName;
+        let targetRole, sectionName, welcomeName;
 
-        if (type === 'high_support') {
+        if (type === 'staff_support') {
+            targetRole = NORMAL_SUPPORT_ROLE;
+            sectionName = 'الدعم الفني';
+            welcomeName = 'الدعم الفني';
+        } else if (type === 'high_support') {
             targetRole = HIGH_SUPPORT_ROLE;
-            sectionName = 'الاداره العليا';
+            sectionName = 'دعم العليا';
+            welcomeName = 'دعم العليا';
         } else if (type === 'event_support') {
             targetRole = EVENT_SUPPORT_ROLE;
             sectionName = 'دعم الايفنت';
-        } else {
-            targetRole = NORMAL_SUPPORT_ROLE;
-            sectionName = 'الدعم الفني';
+            welcomeName = 'دعم الايفنت';
         }
 
         const channel = await interaction.guild.channels.create({
@@ -99,7 +100,7 @@ client.on('interactionCreate', async (interaction) => {
         });
 
         const welcomeEmbed = new EmbedBuilder()
-            .setDescription(`اهلا بك في **${sectionName}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
+            .setDescription(`اهلا بك في **${welcomeName}** نتمنى منك الهدوء والصبر وعدم منشن الاداره وسيتم حل مشكلتك في اسرع وقت 👋🏻`)
             .addFields(
                 { name: 'نوع القسم :', value: `\`${sectionName}\``, inline: false },
                 { name: 'يوزر الشخص :', value: `${interaction.user}`, inline: false },
@@ -139,10 +140,7 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.customId === 'rename_ticket') {
             const modal = new ModalBuilder().setCustomId('rename_modal').setTitle('تغيير اسم التذكرة');
             const input = new TextInputBuilder()
-                .setCustomId('new_name')
-                .setLabel('اختر الاسم الجديد للتذكرة :')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
+                .setCustomId('new_name').setLabel('اختر الاسم الجديد للتذكرة :').setStyle(TextInputStyle.Short).setRequired(true);
             modal.addComponents(new ActionRowBuilder().addComponents(input));
             await interaction.showModal(modal);
         }
@@ -150,10 +148,7 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.customId === 'delete_ticket') {
             const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
-                const log = new EmbedBuilder()
-                    .setTitle('سجل الإغلاق')
-                    .setDescription(`أغلق ${interaction.user} تذكرة \`${interaction.channel.name}\``)
-                    .setColor(0xff0000);
+                const log = new EmbedBuilder().setTitle('سجل الإغلاق').setDescription(`أغلق ${interaction.user} تذكرة \`${interaction.channel.name}\``).setColor(0xff0000);
                 await logChannel.send({ embeds: [log] }).catch(() => {});
             }
             await interaction.reply('جاري الحذف...');
